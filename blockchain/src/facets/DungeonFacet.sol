@@ -52,7 +52,11 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
       uint256 roomId = room.id;
       LibAppStorage.diamondStorage().rooms[dungeon][roomId] = room;
 
-      MonsterState[] memory monsterStates = new MonsterState[](room.monsters.length);
+      RoomState storage roomState = LibAppStorage.diamondStorage().roomStates[dungeon][roomId];
+
+      roomState.id = roomId;
+
+      //roomState.monsterStates = new MonsterState[](room.monsters.length); //not allowed?
       for (uint256 j = 0; j < room.monsters.length; j++) {
         uint256 monsterId = room.monsters[j];
         MonsterData memory monsterData = LibAppStorage.diamondStorage().monsters[monsterId];
@@ -60,14 +64,16 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
         if (monsterData.id == 0) {
           revert InvalidMonster(monsterId);
         }
-        monsterStates[j] = MonsterState({
+
+        roomState.monsterStates[j] = MonsterState({
           id: monsterId,
           lifePoints: monsterData.lifePoints,
           timestamp: block.timestamp
         });
+                
       }
 
-      ChestState[] memory chestStates = new ChestState[](room.chests.length);
+      //roomState.chestStates = new ChestState[](room.chests.length); //not allowed?
       for (uint256 j = 0; j < room.chests.length; j++) {
         uint256 chestId = room.chests[j];
         ChestData memory chestData = LibAppStorage.diamondStorage().chests[chestId];
@@ -75,24 +81,19 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
         if (chestData.id == 0) {
           revert InvalidChest(chestId);
         }
-        chestStates[j] = ChestState({
+
+        roomState.chestStates[j] = ChestState({
           id: chestId,
           locked: chestData.locked,
-          armed: chestData.trapped,          
+          armed: chestData.trapped,
           timestamp: 0
         });
+        
       }
 
-      TrapState memory trapState = TrapState({
+      roomState.trapState = TrapState({
         id: room.trap,
         timestamp: 0
-      });
-
-      LibAppStorage.diamondStorage().roomStates[dungeon][roomId] = RoomState({
-          id: roomId,
-          monsterStates: monsterStates,
-          chestStates: chestStates,
-          trapState: trapState
       });
     }
   }
