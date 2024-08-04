@@ -1,0 +1,93 @@
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "iron scraps",
+            "img": "ipfs://blah"            
+        },
+        {
+            "id": 2,
+            "name": "wood",
+            "img": "ipfs://blah"
+        },
+        {
+            "id": 3,
+            "name": "stone",
+            "img": "ipfs://blah"
+        },
+        {
+            "id": 4,
+            "name": "string",
+            "img": "ipfs://blah"
+        }
+    ],
+    "lootTables": [
+        {
+            "id": 1,
+            "name": "common loot",
+            "items":
+            [
+                { "item": 1, "chance": 10 },
+                { "item": 2, "chance": 10 },
+                { "item": 3, "chance": 10 },
+                { "item": 4, "chance": 10 }
+            ]
+        },
+        {
+            "id": 2,
+            "name": "rock stew",
+            "items":
+            [
+                { "item": 5, "chance": 90 },
+                { "item": 3, "chance": 10 }
+            ]
+        }
+    ],
+    "monsters": [
+        {
+            "id": 1,
+            "name": "Goblin",
+            "lifePoints": 10,
+            "attack": 10,
+            "defence": 2,
+            "speed": 5,
+            "skill" : 1,
+            "loot": 1
+        }  
+    ],
+    "traps": [
+        {
+            "id": 1,
+            "name": "spring trap",
+            "skill": 1,
+            "damage": 10,
+            "cooldown": 600000
+        }
+    ],
+    "chests": [
+        {
+            "id": 1,
+            "name": "common chest",
+            "lootTable": 1,
+            "locked": false
+        }
+    ],
+    "recipes": [
+        {
+            "id": 1,            
+            "name": "rock stew recipe",
+            "ingredients": [    
+                { "item": 1, "amount": 1 },
+                { "item": 2, "amount": 5 }
+            ],
+            "lootTable": 2
+        }
+    ],
+    "craftingStations": [
+        {
+            "id": 1,
+            "name": "cooking pot",
+            "recipes": [1]
+        }
+    ]
+}
