@@ -3,11 +3,25 @@ pragma solidity >=0.8.21;
 
 import "../shared/Structs.sol";
 import { LibAppStorage } from "../libs/LibAppStorage.sol";
+import { IERC721 } from "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 
 library LibDungeon {
 
-    event AdventurerDamaged(address, uint256, uint256, string);
-    event AdventurerKilled(address, uint256, string);
+    event AdventurerDamaged(Adventurer, uint256, uint256, string);
+    event AdventurerKilled(Adventurer, uint256, string);
+
+    event TrapTriggered(address dungeon, uint256 roomId, uint256 trapId);
+
+
+    error CallerIsNotTheOwner();
+
+    function checkAdventurerOwnership(address caller, Adventurer calldata adventurer) internal view {
+        //is the caller the owner of the adventurer?
+        if (IERC721(adventurer.tokenAddress).ownerOf(adventurer.tokenId) != caller) {
+         revert CallerIsNotTheOwner();
+        }
+    }
+
 
     function getAdventurerState(Adventurer calldata adventurer) internal view returns (AdventurerState memory adventurerState) {
         adventurerState = LibAppStorage.diamondStorage().adventurers[adventurer.tokenAddress][adventurer.tokenId];        
@@ -18,7 +32,15 @@ library LibDungeon {
     }
 
     function getRoomData(address dungeon, uint256 roomId) internal view returns (RoomData memory roomData) {
-        
+        roomData = LibAppStorage.diamondStorage().rooms[address(dungeon)][roomId];
+    }
+
+    function getRoomState(address dungeon, uint256 roomId) internal view returns (RoomState storage roomState) {
+        roomState = LibAppStorage.diamondStorage().roomStates[address(dungeon)][roomId];
+    }
+
+    function getTrapData(uint256 trapId) internal view returns (TrapData memory trapData) {
+        trapData = LibAppStorage.diamondStorage().traps[trapId];
     }
 
     function getRandomNumber() internal view returns (uint256) {
@@ -33,45 +55,59 @@ library LibDungeon {
     }
 
     //how much damage does this monster deal to the adventurer
-    function calculateMonsterDamage(AdventurerState memory adventurerState, CombatStats memory combatStats, MonsterData memory monsterData) internal view returns (uint256) {
+    function calculateMonsterDamage(AdventurerState memory adventurerState, MonsterData memory monsterData) internal pure returns (uint256) {
                 
-        if (combatStats.defense > monsterData.combatStats.attack) {
+        if (adventurerState.combatStats.defense > monsterData.combatStats.attack) {
             return 1; // still grazes        
         }
         else
         {
             //simple calculation
-            return (monsterData.combatStats.attack - combatStats.defense);
+            return (monsterData.combatStats.attack - adventurerState.combatStats.defense);
         }
     }
 
-    function applyDamage(AdventurerState memory adventurerState, uint256 damage, string memory source) internal {
+    function calculateTrapDamage(AdventurerState memory adventurerState, TrapData memory trapData) internal pure returns (uint256) {
+        uint256 def = adventurerState.combatStats.defense / 2;
+        if (def > trapData.damage) {
+            return 1; // still grazes
+        }
+        else
+        {
+            //simple calculation
+            return (trapData.damage - def);
+        }                 
+    }
+
+    function applyDamage(AdventurerState storage adventurerState, uint256 damage, string memory source) internal {
         
         if (damage > 0) {
             if (adventurerState.lifePoints > damage) {
                 adventurerState.lifePoints -= damage;
-                emit AdventurerDamaged(adventurerState, damage, adventurerState.lifePoints, source);
+                emit AdventurerDamaged(adventurerState.adventurer, damage, adventurerState.lifePoints, source);
             } else {
                 adventurerState.lifePoints = 0;
-                emit AdventurerKilled(adventurerState, damage, source);
+                emit AdventurerKilled(adventurerState.adventurer, damage, source);
             }            
         }
     }
 
 
-    function tickMonsters(RoomState memory roomState, AdventurerState memory adventurerState) internal 
-    {        
+    function tickMonsters(AdventurerState storage adventurerState) internal 
+    {   
+        RoomState memory roomState = LibAppStorage.diamondStorage().roomStates[adventurerState.currentDungeon][adventurerState.roomId];
+
         // all live monsters attack
         uint256 totalDamage = 0;
-        for (uint256 i = 0; i < roomState.monsters.length; i++) {
-            MonsterState memory monsterState = roomState.monsters[i];
-            uint256 monsterId = monsterState.monsterId;
+        for (uint256 i = 0; i < roomState.monsterStates.length; i++) {
+            MonsterState memory monsterState = roomState.monsterStates[i];
+            uint256 monsterId = monsterState.id;
             if (monsterId > 0 && monsterState.lifePoints > 0) {        
                 MonsterData memory monsterData = LibDungeon.getMonsterData(monsterId);
                 //do a skill check
                 if (!LibDungeon.checkSkill(adventurerState.combatStats.skill, monsterData.combatStats.skill)) {
                     //calculate damage
-                    totalDamage += LibDungeon.calculateMonsterDamage(adventurerState, adventurerState.combatStats, monsterData);                                        
+                    totalDamage += LibDungeon.calculateMonsterDamage(adventurerState, monsterData);                                        
                 }
             }
         }
@@ -80,5 +116,48 @@ library LibDungeon {
             LibDungeon.applyDamage(adventurerState, totalDamage, "monsters");
         }
     }
+
+    function tickTraps(AdventurerState storage adventurerState) internal {
+        
+        RoomData memory roomData = LibDungeon.getRoomData(adventurerState.currentDungeon, adventurerState.roomId);
+        if (roomData.trap > 0) {        
+            TrapData memory trapData = LibDungeon.getTrapData(roomData.trap);
+            RoomState storage newRoomState = LibDungeon.getRoomState(adventurerState.currentDungeon, adventurerState.roomId);
+            //check if trap is armed
+            if (block.timestamp > newRoomState.trapState.timestamp + trapData.cooldown) {
+                if (!LibDungeon.checkSkill(adventurerState.combatStats.skill, trapData.skill)) {
+                    //take damage
+                    emit TrapTriggered(adventurerState.currentDungeon, adventurerState.roomId, trapData.id);                
+                    uint256 trapDamage = LibDungeon.calculateTrapDamage(adventurerState, trapData);
+                    if (trapDamage > 0) {
+                      LibDungeon.applyDamage(adventurerState, trapDamage, "trap");
+                    }
+                    newRoomState.trapState.timestamp = block.timestamp;
+                }                            
+            }            
+        }
+    }
+
+    function exitDungeon(AdventurerState storage adventurerState) internal {
+        
+        if (adventurerState.lifePoints > 0) {
+
+            // allow the adventurer to exit the dungeon with items and xp
+            
+            //add xp
+            adventurerState.claimableXp += adventurerState.xp;
+            adventurerState.xp = 0;
+
+            //transfer items to adventurer owner
+            //TODO
+
+        }
+
+        //clear out current dungeon
+        adventurerState.currentDungeon = address(0);
+        adventurerState.roomId = 0;
+        
+    }
+
 
 }

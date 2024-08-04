@@ -25,8 +25,8 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
 
   event MonsterAttacked();
 
-  event TrapTriggered();
-
+  error InvalidMonster(uint256);
+  error InvalidChest(uint256);
 
 
   // admin functions
@@ -45,28 +45,73 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
 
 
   function addRooms(address dungeon, RoomData[] calldata rooms) external isAdmin {
-    DungeonData storage dungeon = LibAppStorage.diamondStorage().dungeons[dungeon];
+  
     for (uint256 i = 0; i < rooms.length; i++) {
-      dungeon.rooms.push(rooms[i]);
+
+      RoomData memory room = rooms[i];
+      uint256 roomId = room.id;
+      LibAppStorage.diamondStorage().rooms[dungeon][roomId] = room;
+
+      MonsterState[] memory monsterStates = new MonsterState[](room.monsters.length);
+      for (uint256 j = 0; j < room.monsters.length; j++) {
+        uint256 monsterId = room.monsters[j];
+        MonsterData memory monsterData = LibAppStorage.diamondStorage().monsters[monsterId];
+        //is it valid?
+        if (monsterData.id == 0) {
+          revert InvalidMonster(monsterId);
+        }
+        monsterStates[j] = MonsterState({
+          id: monsterId,
+          lifePoints: monsterData.lifePoints,
+          timestamp: block.timestamp
+        });
+      }
+
+      ChestState[] memory chestStates = new ChestState[](room.chests.length);
+      for (uint256 j = 0; j < room.chests.length; j++) {
+        uint256 chestId = room.chests[j];
+        ChestData memory chestData = LibAppStorage.diamondStorage().chests[chestId];
+        //is it valid?
+        if (chestData.id == 0) {
+          revert InvalidChest(chestId);
+        }
+        chestStates[j] = ChestState({
+          id: chestId,
+          locked: chestData.locked,
+          armed: chestData.trapped,          
+          timestamp: 0
+        });
+      }
+
+      TrapState memory trapState = TrapState({
+        id: room.trap,
+        timestamp: 0
+      });
+
+      LibAppStorage.diamondStorage().roomStates[dungeon][roomId] = RoomState({
+          id: roomId,
+          monsterStates: monsterStates,
+          chestStates: chestStates,
+          trapState: trapState
+      });
     }
   }
 
-  function modifyRoom(address dungeon, uint256 roomIdx, RoomData calldata room) external isAdmin {
-    DungeonData storage dungeon = LibAppStorage.diamondStorage().dungeons[dungeon];
-    dungeon.rooms[roomIdx] = room;
+  function modifyRoom(address dungeon, uint256 roomId, RoomData calldata room) external isAdmin {
+    LibAppStorage.diamondStorage().rooms[dungeon][roomId] = room;
+    //TODO: update room state
   }
 
   function getRoom(
     Adventurer calldata adventurer
-  ) external view override returns (RoomState memory) {
+  ) external view override returns (RoomState memory roomState) {
 
     AdventurerState memory adv = LibDungeon.getAdventurerState(adventurer);
     if (adv.currentDungeon != msg.sender) {
       revert AdventurerNotInDungeon();
     }
 
-    DungeonData storage dungeon = LibAppStorage.diamondStorage().dungeons[msg.sender];
-    return dungeon.roomStates[adv.roomId];
+    roomState = LibAppStorage.diamondStorage().roomStates[adv.currentDungeon][adv.roomId];
   }
 
   function getAdventurerState(
@@ -86,12 +131,8 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
 
     console2.log("entering dungeon");
 
-    //is the caller the owner of the adventurer?
-    //if (ERC721(adventurer.tokenAddress).ownerOf(adventurer.tokenId) != caller) {
-    //  revert CallerIsNotTheOwner();
-    //}
-
-
+    LibDungeon.checkAdventurerOwnership(caller, adventurer);
+    
     AdventurerState storage advState = LibAppStorage.diamondStorage().adventurers[adventurer.tokenAddress][adventurer.tokenId];
     
     //is the adventurer already in a dungeon?
@@ -124,29 +165,22 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
 
     console2.log("exiting dungeon");
 
-    //is the caller the owner of the adventurer?
-    //if (ERC721(adventurer.tokenAddress).ownerOf(adventurer.tokenId) != caller) {
-    //  revert CallerIsNotTheOwner();
-    //}
-
+    LibDungeon.checkAdventurerOwnership(caller, adventurer);
+    
     AdventurerState storage advState = LibAppStorage.diamondStorage().adventurers[adventurer.tokenAddress][adventurer.tokenId];
 
     if (advState.currentDungeon != msg.sender) {
         revert AdventurerNotInDungeon();
     }
 
-    //adventurers can exit the dungeon at any time
-    //as long as there are no live monsters in the room
-    RoomState memory room = LibDungeon.getRoom(advState.currentDungeon, advState.roomId);
-
-    for (uint256 i = 0; i < room.monsters.length; i++) {
-      if (room.monsters[i].lifePoints > 0) {
-        revert CantExitDungeonWithLiveMonsters();
-      }
-    }
+    // adventurers can exit the dungeon at any time 
     
-    //allow the adventurer to exit the dungeon with items and xp if they are still alive
-    LibDungeon.exitDungeon(adventurer, advState);
+    // monsters will however get an attack if they are alive
+    LibDungeon.tickMonsters(advState);
+    
+    // allow the adventurer to exit the dungeon (with items and xp if they are still alive)
+    LibDungeon.exitDungeon(advState);
+
   }
 
   function nextRoom(
@@ -156,11 +190,8 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
   ) external override {
     console2.log("nextRoom");
 
-    //is the caller the owner of the adventurer?
-    //if (ERC721(adventurer.tokenAddress).ownerOf(adventurer.tokenId) != caller) {
-    //  revert CallerIsNotTheOwner();
-    //}
-
+    LibDungeon.checkAdventurerOwnership(caller, adventurer);
+    
     AdventurerState storage advState = LibAppStorage.diamondStorage().adventurers[adventurer.tokenAddress][adventurer.tokenId];
 
     if (advState.currentDungeon != msg.sender) {
@@ -177,46 +208,16 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
         revert InvalidExit();
     }
 
-    RoomState storage roomState = LibDungeon.getRoomState(advState.currentDungeon, advState.roomId);
-
-    LibDungeon.tickMonsters(roomState, advState);
-
-    // all live monsters attack    
-    for (uint256 i = 0; i < roomState.monsters.length; i++) {
-      MonsterState memory monsterState = roomState.monsters[i];
-      uint256 monsterId = monsterState.monsterId;
-      if (monsterId > 0 && monsterState.lifePoints > 0) {        
-        MonsterData memory monsterData = LibDungeon.getMonster(monsterId);
-        //do a skill check
-        if (!LibDungeon.checkSkill(advState.combatStats.skill, monsterData.combatStats.skill)) {
-            //take damage
-            emit MonsterAttacked(advState.currentDungeon, advState.roomId, monsterData);
-            LibDungeon.applyAdventurerDamageFromMonster(advState, advState.combatStats, monsterData);            
-        }
-      }
-    }
+    LibDungeon.tickMonsters(advState);
 
     if (advState.lifePoints > 0) {
 
         //go to the next room
         advState.roomId = roomData.exits[door];
-
         //check for traps in the new room    
-        RoomData memory newRoomData = LibDungeon.getRoomData(advState.currentDungeon, advState.roomId);
-        if (newRoomData.trap > 0) {        
-            TrapData memory trapData = LibDungeon.getTrapData(newRoomData.trap);
-            TrapState storage trapState = LibDungeon.getTrapState(advState.currentDungeon, advState.roomId, trapData.trapId);
-            //check if trap is armed
-            if (block.timestamp > trapState.timestamp + trapData.cooldown) {
-                if (!LibDungeon.checkSkill(advState.combatStats.skill, trapData.skill)) {
-                    //take damage
-                    emit TrapTriggered(advState.currentDungeon, advState.roomId, trapData.trapId);                
-                    LibDungeon.applyAdventurerDamageFromTrap(advState, advState.combatStats, trapData);
-                    trapState.timestamp = block.timestamp;
-                }                            
-            }            
-        }
+        LibDungeon.tickTraps(advState);
     }
+
   }
 
   function fightMonster(

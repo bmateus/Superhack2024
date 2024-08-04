@@ -20,6 +20,18 @@ struct ERC20TokenConfig {
   uint8 decimals;
 }
 
+struct ERC1155Token {
+  string name;
+}
+
+struct ERC1155TokenConfig {
+  string name;
+  string symbol;
+}
+
+
+
+
 struct Item {
   address tokenAddr;
   uint256 tokenId;
@@ -29,6 +41,7 @@ struct Item {
 // a loot table represents a list of items that can be randomly selected
 struct LootTable
 {
+  uint256 id;
   Item[] items;
   uint256[] probabilities;
   uint256 totalProbability;
@@ -68,13 +81,12 @@ enum DungeonStatus {
 
 struct DungeonData {
   DungeonStatus status;
+  uint256 startingRoom;
   DungeonRequirements[] requirements;
-  RoomData[] rooms;
-  RoomState[] roomStates;
-
 }
 
 struct RoomData {
+  uint256 id;
   uint256[4] exits;  
   uint256[4] monsters;
   uint256[2] chests;
@@ -84,6 +96,7 @@ struct RoomData {
 }
 
 struct ChestData {
+  uint256 id;
   uint256 lootTableId;
   uint256 cooldown;
   bool locked;
@@ -98,13 +111,15 @@ struct CombatStats
   uint256 skill; //chance to hit & chance to dodge
 }
 
-struct MonsterData {  
+struct MonsterData { 
+  uint256 id; 
   uint256 lifePoints;
   CombatStats combatStats;
   uint256 lootTableId;
 }
 
 struct TrapData {
+  uint256 id;
   string name;
   uint256 skill; //skill required to disarm or avoid trap
   uint256 damage;
@@ -113,28 +128,29 @@ struct TrapData {
 
 struct ChestState
 {
+  uint256 id;
   bool locked;
   bool armed;
   uint256 timestamp;
 }
 
 struct MonsterState {
-  uint256 monsterId;
+  uint256 id;
   uint256 lifePoints;
   uint256 timestamp; //time when killed and looted
 }
 
 struct TrapState {
-  uint256 trapDataId;
+  uint256 id;
   uint256 timestamp; //triggered or disarmed
 }
 
 struct RoomState 
 {
-  uint256 roomDataId; 
-  MonsterState[] monsters;
-  ChestState[] chests;
-  TrapState trap;
+  uint256 id; 
+  MonsterState[] monsterStates;
+  ChestState[] chestStates;
+  TrapState trapState;
 }
 
 //an adventurer can be an arbitrary whitelisted ERC-721

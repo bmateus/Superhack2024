@@ -15,7 +15,7 @@ contract LootFacet is AccessControl {
     }
 
     function createLootTable(LootTable calldata lootTable) external isAdmin {
-
+            
     }
 
 }

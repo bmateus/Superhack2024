@@ -15,7 +15,8 @@ contract DungeonTest is TestBaseContract {
     
     RoomData[] memory rooms = new RoomData[](3);
     rooms[0] = RoomData({
-        exits: [uint256(1), 2, 0, 0],
+        id: 1,
+        exits: [uint256(2), 3, 0, 0],
         trap: 0,
         monsters: [uint256(0), 0, 0, 0],
         chests: [uint256(0), 0],
@@ -23,7 +24,8 @@ contract DungeonTest is TestBaseContract {
         hasFire: false        
       });
     rooms[1] = RoomData({
-        exits: [uint256(1), 2, 0, 0],
+        id: 2,
+        exits: [uint256(1), 0, 0, 0],
         trap: 0,
         monsters: [uint256(0), 0, 0, 0],
         chests: [uint256(0), 0],
@@ -31,7 +33,8 @@ contract DungeonTest is TestBaseContract {
         hasFire: false        
       });
     rooms[2] = RoomData({
-        exits: [uint256(1), 2, 0, 0],
+        id: 3,
+        exits: [uint256(1), 0, 0, 0],
         trap: 0,
         monsters: [uint256(0), 0, 0, 0],
         chests: [uint256(0), 0],

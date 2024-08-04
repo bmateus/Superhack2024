@@ -13,8 +13,10 @@ struct AppStorage {
     mapping(address => mapping(uint256 => AdventurerState)) adventurers;
     mapping(address => bool) whitelistedAdventurerContracts;
 
-    mapping(address => DungeonData) dungeons;
-
+    mapping(address => DungeonData) dungeons;    
+    mapping(address => mapping(uint256 => RoomData)) rooms;
+    mapping(address => mapping(uint256 => RoomState)) roomStates;
+    
     mapping(address => Item) items; //make these ERC-1155s
     
     mapping (uint256 => MonsterData) monsters;
