@@ -31,6 +31,11 @@ struct AppStorage {
 
     mapping (uint256 => CraftingStation) craftingStations;
 
+    //mersenne twister state
+    MersenneTwisterState mtState;
+
+
+
     /*
     IMPORTANT NOTE!!!: Once contracts have been deployed you cannot modify the existing entries here. You can only append 
     new entries. Otherwise, any subsequent upgrades you perform will break the memory structure of your 

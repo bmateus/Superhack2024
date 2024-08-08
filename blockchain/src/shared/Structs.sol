@@ -176,4 +176,10 @@ struct AdventurerState
   //inventory a list of items brought into the dungeon; if you die you lose your bag
 }
 
+struct MersenneTwisterState
+{
+  uint[624] MT;
+  uint index;
+}
+
 

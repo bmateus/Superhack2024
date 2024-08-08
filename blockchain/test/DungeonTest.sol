@@ -24,7 +24,7 @@ contract DungeonTest is TestBaseContract {
           attack: 1,
           defense: 1,
           speed: 1,
-          skill: 10
+          skill: 1
         }),
         lootTableId: 0
       });

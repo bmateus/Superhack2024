@@ -5,6 +5,7 @@ import "../shared/Structs.sol";
 import { LibAppStorage } from "../libs/LibAppStorage.sol";
 import { IERC721 } from "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import { IERC165 } from "lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol";
+import { LibMersenneTwister } from "../libs/LibMersenneTwister.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
@@ -54,17 +55,22 @@ library LibDungeon {
         trapData = LibAppStorage.diamondStorage().traps[trapId];
     }
 
-    function getRandomNumber() internal view returns (uint256) {
-        uint256 randomNumber = uint256(keccak256(abi.encode(block.prevrandao, block.timestamp)));
+    function getRandomNumber() internal returns (uint256) {
+        uint256 nonce = uint256(keccak256(abi.encode(block.prevrandao, block.timestamp)));
+        uint256 randomNumber = nonce % LibMersenneTwister.nextInt() + 1;
         console2.log("random number: ", randomNumber);
         return randomNumber; //a lame random number
     }
 
 
-    function checkSkill(uint256 adventurerSkill, uint256 targetSkill) internal view returns (bool) {
+    function checkSkill(uint256 adventurerSkill, uint256 targetSkill) internal returns (bool) {
         
         //both roll a d20 and add them to their skill and compare the results
-        return (adventurerSkill + getRandomNumber() % 20) > (targetSkill + getRandomNumber() % 20); 
+        uint256 adventurerRoll = getRandomNumber() % 20;
+        uint256 targetRoll = getRandomNumber() % 20;
+        console2.log("adventurer roll: ", adventurerRoll, " target roll: ", targetRoll);
+        console2.log("adventurer result: ", adventurerSkill + adventurerRoll, " target result: ", targetSkill + targetRoll);
+        return (adventurerSkill + adventurerRoll) > (targetSkill + targetRoll); 
     }
 
     //how much damage does this monster deal to the adventurer

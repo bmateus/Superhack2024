@@ -299,9 +299,6 @@ contract DungeonFacet is IDungeonFacet, AccessControl {
 
   function warmPotato(address caller, Adventurer calldata adventurer) external override {
     console2.log("warmPotato");
-
-
-
   }
 
   function throwPotato(

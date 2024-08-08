@@ -3,6 +3,8 @@ pragma solidity >=0.8.21;
 
 import { AppStorage, LibAppStorage } from "../libs/LibAppStorage.sol";
 
+import { LibMersenneTwister } from "../libs/LibMersenneTwister.sol";
+
 error DiamondAlreadyInitialized();
 
 contract InitDiamond {
@@ -18,6 +20,10 @@ contract InitDiamond {
     /*
         TODO: add custom initialization logic here
     */
+
+    LibMersenneTwister.init(1);
+
+    // emit DiamondInitialized(msg.sender);
 
     emit InitializeDiamond(msg.sender);
   }
