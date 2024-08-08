@@ -37,12 +37,12 @@ contract Dungeon is MetaContext {
 
     // gets the state of the current room in the dungeon
     function getRoom(Adventurer calldata adventurer) public view returns (RoomState memory roomState) {
-        _parent.getRoom(adventurer);
+        roomState = _parent.getRoom(adventurer);
     }
 
     // gets the state of the given adventurer in the dungeon 
     function getAdventurerState(Adventurer calldata adventurer) public view returns (AdventurerState memory adventurerState) {
-        _parent.getAdventurerState(adventurer);
+        adventurerState = _parent.getAdventurerState(adventurer);
     }
 
     // exits the dungeon, awarding any loot and xp if the player is still alive

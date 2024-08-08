@@ -113,7 +113,7 @@ struct CombatStats
 
 struct MonsterData { 
   uint256 id; 
-  uint256 lifePoints;
+  uint256 hitPoints;
   CombatStats combatStats;
   uint256 lootTableId;
 }
@@ -136,7 +136,7 @@ struct ChestState
 
 struct MonsterState {
   uint256 id;
-  uint256 lifePoints;
+  uint256 hitPoints;
   uint256 timestamp; //time when killed and looted
 }
 
@@ -151,6 +151,7 @@ struct RoomState
   MonsterState[] monsterStates;
   ChestState[] chestStates;
   TrapState trapState;
+  //TODO: enumerable list of adventurers
 }
 
 //an adventurer can be an arbitrary whitelisted ERC-721
@@ -168,7 +169,7 @@ struct AdventurerState
   uint256 roomId;
   uint256 seed;
   CombatStats combatStats; //gets set depending on equipped items
-  uint256 lifePoints;  //if in a dungeon and it reaches zero they are dead and can only leave dungeon
+  uint256 hitPoints;  //if in a dungeon and it reaches zero they are dead and can only leave dungeon
   uint256 xp; //xpearned for the run - gets added to claimableXp if run is successful
   uint256 claimableXp; // how much xp was earned - can be used by external system to level up the adventurer. this only gets reset after claiming it
   //equipped items

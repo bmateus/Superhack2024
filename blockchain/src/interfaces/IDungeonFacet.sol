@@ -8,14 +8,6 @@ import "../shared/Structs.sol";
  */
 interface IDungeonFacet {
 
-    //admin edit function
-
-    function createNewDungeon() external returns (address);
-
-    function addRooms(address dungeon, RoomData[] calldata rooms) external;
-
-    function modifyRoom(address dungeon, uint256 roomIdx, RoomData calldata room) external;
-
     // player actions:
 
     function enterDungeon(address caller, Adventurer calldata adventurer) external;

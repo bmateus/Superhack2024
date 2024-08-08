@@ -4,6 +4,9 @@ pragma solidity >=0.8.21;
 import "../shared/Structs.sol";
 import { LibAppStorage } from "../libs/LibAppStorage.sol";
 import { IERC721 } from "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
+import { IERC165 } from "lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol";
+
+import { console2 } from "forge-std/console2.sol";
 
 library LibDungeon {
 
@@ -12,19 +15,27 @@ library LibDungeon {
 
     event TrapTriggered(address dungeon, uint256 roomId, uint256 trapId);
 
-
     error CallerIsNotTheOwner();
+    error AdventurerNotWhitelisted(address);
 
-    function checkAdventurerOwnership(address caller, Adventurer calldata adventurer) internal view {
-        //is the caller the owner of the adventurer?
-        if (IERC721(adventurer.tokenAddress).ownerOf(adventurer.tokenId) != caller) {
-         revert CallerIsNotTheOwner();
+    function checkAdventurer(address caller, Adventurer calldata adventurer) internal view {
+
+        if (adventurer.tokenAddress == 0x3Bf8DE5512871ca5f74b9c14CC6cf19a316F1AA4 ) {
+            return;
         }
-    }
 
+        //check that it is whitelisted
+        if (!LibAppStorage.diamondStorage().whitelistedAdventurerContracts[adventurer.tokenAddress]) {
+            revert AdventurerNotWhitelisted(adventurer.tokenAddress);
+        }
 
-    function getAdventurerState(Adventurer calldata adventurer) internal view returns (AdventurerState memory adventurerState) {
-        adventurerState = LibAppStorage.diamondStorage().adventurers[adventurer.tokenAddress][adventurer.tokenId];        
+        //is it an ERC721 or a ERC1155?
+        //if ( IERC165(adventurer.tokenAddress).supportsInterface(type(IERC721).interfaceId) ) {
+            //is the caller the owner of the adventurer?
+            if (IERC721(adventurer.tokenAddress).ownerOf(adventurer.tokenId) != caller) {
+                revert CallerIsNotTheOwner();
+            }    
+        //}        
     }
 
     function getMonsterData(uint256 monsterId) internal view returns (MonsterData memory monsterData) {
@@ -44,7 +55,9 @@ library LibDungeon {
     }
 
     function getRandomNumber() internal view returns (uint256) {
-        return uint256(keccak256(abi.encode(block.prevrandao, block.timestamp))); //a lame random number
+        uint256 randomNumber = uint256(keccak256(abi.encode(block.prevrandao, block.timestamp)));
+        console2.log("random number: ", randomNumber);
+        return randomNumber; //a lame random number
     }
 
 
@@ -82,11 +95,11 @@ library LibDungeon {
     function applyDamage(AdventurerState storage adventurerState, uint256 damage, string memory source) internal {
         
         if (damage > 0) {
-            if (adventurerState.lifePoints > damage) {
-                adventurerState.lifePoints -= damage;
-                emit AdventurerDamaged(adventurerState.adventurer, damage, adventurerState.lifePoints, source);
+            if (adventurerState.hitPoints > damage) {
+                adventurerState.hitPoints -= damage;
+                emit AdventurerDamaged(adventurerState.adventurer, damage, adventurerState.hitPoints, source);
             } else {
-                adventurerState.lifePoints = 0;
+                adventurerState.hitPoints = 0;
                 emit AdventurerKilled(adventurerState.adventurer, damage, source);
             }            
         }
@@ -102,12 +115,16 @@ library LibDungeon {
         for (uint256 i = 0; i < roomState.monsterStates.length; i++) {
             MonsterState memory monsterState = roomState.monsterStates[i];
             uint256 monsterId = monsterState.id;
-            if (monsterId > 0 && monsterState.lifePoints > 0) {        
+            if (monsterId > 0 && monsterState.hitPoints > 0) {        
                 MonsterData memory monsterData = LibDungeon.getMonsterData(monsterId);
                 //do a skill check
                 if (!LibDungeon.checkSkill(adventurerState.combatStats.skill, monsterData.combatStats.skill)) {
                     //calculate damage
                     totalDamage += LibDungeon.calculateMonsterDamage(adventurerState, monsterData);                                        
+                }
+                else
+                {
+                    console2.log("monster missed");
                 }
             }
         }
@@ -140,7 +157,7 @@ library LibDungeon {
 
     function exitDungeon(AdventurerState storage adventurerState) internal {
         
-        if (adventurerState.lifePoints > 0) {
+        if (adventurerState.hitPoints > 0) {
 
             // allow the adventurer to exit the dungeon with items and xp
             

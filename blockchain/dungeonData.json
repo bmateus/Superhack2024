@@ -47,7 +47,7 @@
         {
             "id": 1,
             "name": "Goblin",
-            "lifePoints": 10,
+            "hitPoints": 10,
             "attack": 10,
             "defence": 2,
             "speed": 5,
